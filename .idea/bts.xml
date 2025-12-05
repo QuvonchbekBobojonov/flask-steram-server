@@ -2,5 +2,7 @@
 <project version="4">
   <component name="bts">
     <option name="configFilePath" value="$PROJECT_DIR$/.docker/odoo.conf" />
+    <option name="moduleList" value="&lt;ArrayList/&gt;" />
+    <option name="modulePathList" value="&lt;ArrayList/&gt;" />
   </component>
 </project>

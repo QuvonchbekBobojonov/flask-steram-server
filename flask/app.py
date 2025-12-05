@@ -60,16 +60,7 @@ def view(name):
 def grid():
     now = time.time()
     active = [n for n, t in last_ts.items() if now - t < 5]
-
-    page = int(request.args.get("page", 1))
-    per_page = 5
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    total_pages = (len(active) + per_page - 1)
-    streams = active[start:end]
-
-    return render_template("index.html", streams=streams, page=page, pages=total_pages)
+    return render_template("index.html", streams=active)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, threaded=True)
