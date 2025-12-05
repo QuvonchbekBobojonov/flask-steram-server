@@ -1,41 +1,48 @@
-import cv2
-import requests
+import threading
 import time
 
-STREAM_NAME = "opencv_test"   # dinamik nom
-PUSH_URL = f"http://127.0.0.1:8000/push/{STREAM_NAME}"
+import cv2
+import requests
 
-cap = cv2.VideoCapture(0)  # Web-kamerani ochish
+URL = "http://127.0.0.1:8000/push"
+ROOMS = 30
+FPS = 10
 
-if not cap.isOpened():
-    print("Kamera ochilmadi!")
-    exit()
+session = requests.Session()
+latest = None
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Kadr olinmadi!")
-        break
 
-    # JPEG formatga kodlash
-    _, jpeg = cv2.imencode('.jpg', frame)
+def reader():
+    global latest
+    cap = cv2.VideoCapture(0)
+    while True:
+        ok, f = cap.read()
+        if ok:
+            latest = f
 
-    # Flaskga push qilish
-    try:
-        requests.post(
-            PUSH_URL,
+
+def worker(i):
+    name = f"{URL}/room_{i}"
+    while True:
+        if latest is None:
+            time.sleep(0.001)
+            continue
+        _, jpeg = cv2.imencode(".jpg", latest)
+        session.post(
+            name,
             data=jpeg.tobytes(),
             headers={"Content-Type": "image/jpeg"},
-            timeout=0.5
+            timeout=0.2
         )
-    except Exception as e:
-        print("Push error:", e)
+    time.sleep(1 / FPS)
 
-    # Lokal ekranda ko‘rsatish (test uchun)
-    cv2.imshow("Pushing to Flask", frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+threading.Thread(target=reader, daemon=True).start()
 
-cap.release()
-cv2.destroyAllWindows()
+for i in range(ROOMS):
+    threading.Thread(target=worker, args=(i,), daemon=True).start()
+
+print("HTTP POST push started for 30 rooms")
+
+while True:
+    time.sleep(1)

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stream Grid</title>
+    <style>
+        body { background:#111; color:white; padding:20px; margin:0; font-family: Arial; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:15px; }
+        .cell { background:#222; padding:10px; border-radius:10px; }
+        img { width:100%; border-radius:10px; background:black; object-fit:cover; }
+        .pagination { margin-top:20px; text-align:center; }
+        .pagination a {
+            padding:8px 14px;
+            margin:0 4px;
+            background:#333;
+            color:white;
+            text-decoration:none;
+            border-radius:5px;
+        }
+        .pagination a.active {
+            background:#00aaff;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Streams Page {{ page }}</h1>
+
+<div class="grid">
+    {% for name in streams %}
+    <div class="cell">
+        <h3>{{ name }}</h3>
+        <img src="/{{ name }}">
+    </div>
+    {% endfor %}
+</div>
+
+<div class="pagination">
+    {% for p in range(1, pages+1) %}
+        <a href="/?page={{ p }}" class="{% if p == page %}active{% endif %}">{{ p }}</a>
+    {% endfor %}
+</div>
+
+</body>
+</html>

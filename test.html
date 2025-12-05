@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>HTML Camera Push Test</h2>
+
+<video id="video" autoplay playsinline width="400"></video>
+<button id="start">Start Push</button>
+
+<script>
+let ws;
+let sending = false;
+
+document.getElementById("start").onclick = async () => {
+    sending = true;
+
+    ws = new WebSocket("ws://127.0.0.1:8000/ws/room_0");
+    ws.binaryType = "arraybuffer";
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const video = document.getElementById("video");
+    video.srcObject = stream;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    function sendFrame() {
+        if (!sending || ws.readyState !== 1) return;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        canvas.toBlob((blob) => {
+            if (blob) blob.arrayBuffer().then(buf => ws.send(buf));
+        }, "image/jpeg", 0.6);
+
+        requestAnimationFrame(sendFrame);
+    }
+
+    sendFrame();
+};
+</script>
+
+</body>
+</html>

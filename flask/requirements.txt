@@ -1,0 +1,8 @@
+flask
+flask-socketio
+eventlet
+opencv-python-headless
+numpy
+requests
+redis
+flask-sock

@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.14 (cameramen)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.14 (cameramen)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.14 (flask-steram-server)" project-jdk-type="Python SDK" />
 </project>
