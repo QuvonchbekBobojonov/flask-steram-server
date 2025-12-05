@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Stream Grid</title>
+    <style>
+        body {
+            background: #111;
+            color: white;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns:repeat(auto-fill, minmax(350px, 1fr));
+            gap: 15px;
+        }
+
+        .cell {
+            background: #222;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        img {
+            width: 100%;
+            border-radius: 10px;
+            background: black;
+        }
+    </style>
+</head>
+
+<body>
+<h1>Dynamic Multi-Stream Grid</h1>
+
+<div class="grid">
+    {% for name in streams %}
+    <div class="cell">
+        <h3>{{ name }}</h3>
+        <img src="/{{ name }}" alt="image">
+    </div>
+    {% endfor %}
+</div>
+
+</body>
+</html>
