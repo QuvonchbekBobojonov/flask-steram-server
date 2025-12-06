@@ -18,30 +18,19 @@ def get_lock(name):
 
 def feeder(name):
     boundary = b"--frame\r\n"
-    last_sent = 0
 
     while True:
-        now = time.time()
-
-        # FPS limiting for clients
-        if now - last_sent < 1 / MAX_FPS:
-            time.sleep(0.002)
-            continue
-
-        lock = get_lock(name)
-        with lock:
-            frame = frames.get(name)
-
+        frame = frames.get(name)
         if frame:
             yield (
                 boundary +
-                b"Content-Type: image/jpeg\r\n"
+                b"Content-Type: image/webp\r\n" +   # ✅ MUHIM
                 b"Content-Length: " + str(len(frame)).encode() + b"\r\n\r\n" +
                 frame + b"\r\n"
             )
-            last_sent = now
         else:
             time.sleep(0.01)
+
 
 @app.post("/push/<name>")
 def push(name):
