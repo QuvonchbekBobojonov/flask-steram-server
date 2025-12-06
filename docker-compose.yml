@@ -16,17 +16,3 @@ services:
     ports:
       - "6379:6379"
 
-  mediamtx:
-    image: bluenviron/mediamtx:latest
-    container_name: mediamtx
-    restart: always
-
-    ports:
-      - "127.0.0.1:8889:8889"   # WebRTC (nginx proxy)
-      - "127.0.0.1:9997:9997"   # API (flask)
-      - "8554:8554"             # RTSP push
-
-    volumes:
-      - ./mediamtx.yml:/mediamtx.yml
-
-    command: mediamtx /mediamtx.yml
