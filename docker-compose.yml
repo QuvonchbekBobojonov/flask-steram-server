@@ -1,34 +1,32 @@
-version: "5"
-
 services:
   flask:
     build: ./flask
     container_name: flask_dashboard
     restart: always
-
     ports:
       - "8000:8000"
-      - "9000:9000"
     depends_on:
       - redis
+      - mediamtx
 
   redis:
-    image: "redis:alpine"
+    image: redis:alpine
     container_name: redis_cache
     restart: always
-
     ports:
       - "6379:6379"
+
   mediamtx:
     image: bluenviron/mediamtx:latest
     container_name: mediamtx
     restart: always
 
     ports:
-      - "8554:8554"   # RTSP
-      - "8889:8889"   # WebRTC
-      - "8888:8888"   # HLS (optional)
-  
+      - "127.0.0.1:8889:8889"   # WebRTC (nginx proxy)
+      - "127.0.0.1:9997:9997"   # API (flask)
+      - "8554:8554"             # RTSP push
+
     volumes:
       - ./mediamtx.yml:/mediamtx.yml
-      command: mediamtx /mediamtx.yml
+
+    command: mediamtx /mediamtx.yml
