@@ -81,14 +81,7 @@
     {% for name in streams %}
     <div class="cell">
         <h3>{{ name }}</h3>
-
-        <!-- ✅ MediaMTX WebRTC -->
-        <iframe
-          class="player lazy"
-          data-src="/webrtc/{{ name }}"
-          allow="autoplay; fullscreen">
-        </iframe>
-
+        <img src="/view/{{ name }}" style="width:320px;">
     </div>
     {% endfor %}
 </div>
