@@ -2,27 +2,32 @@
 <html>
 <head>
 <meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+<title>Camera Test (CDN)</title>
+
+<!-- ✅ Sizning CDN -->
+<script src="https://ic3-camera-cantrol.moorfo.uz/cdn/camera-proctor.js"></script>
 </head>
+
 <body>
+
 <button onclick="start()">Start</button>
-<video id="v" autoplay muted playsinline style="width:400px;background:black"></video>
 <pre id="log"></pre>
+
 <script>
-const USER = "user_" + Date.now()
-const log=t=>document.getElementById("log").textContent+=t+"\n"
-async function start(){
-  try{
-    const r=await fetch(`/token/${USER}`)
-    const d=await r.json()
-    const room=new LivekitClient.Room()
-    await room.connect(d.url,d.token)
-    const tracks=await LivekitClient.createLocalTracks({video:true})
-    await room.localParticipant.publishTrack(tracks[0])
-    document.getElementById("v").srcObject=new MediaStream([tracks[0].mediaStreamTrack])
+const log = t => document.getElementById("log").textContent += t + "\n"
+
+async function start() {
+  try {
+    await LiveKitProctor({
+      tokenEndpoint: "https://ic3-camera-cantrol.moorfo.uz/token",
+      user: "test-user"
+    })
     log("LIVE")
-  }catch(e){log(e.message)}
+  } catch (e) {
+    log("ERROR: " + e.message)
+  }
 }
 </script>
+
 </body>
 </html>
