@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Camera Push Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #0d1117;
+            color: #e6e6e6;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .wrap {
+            max-width: 720px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 12px;
+            background: black;
+        }
+        .controls {
+            margin-top: 15px;
+        }
+        button {
+            padding: 8px 18px;
+            margin: 0 5px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #startBtn { background: #238636; color: white; }
+        #stopBtn  { background: #8b949e; color: white; }
+        #status {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Camera → Server Push Test</h1>
+
+    <video id="video" autoplay playsinline></video>
+
+    <div class="controls">
+        <button id="startBtn">Start test</button>
+        <button id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <div id="status">Status: Ready</div>
+</div>
+
+<script>
+    // !!! Shu yerda sening push URL'ing
+    const PUSH_URL = "https://ic3-camera-cantrol.moorfo.uz/push/quvonchbek-bobojonov";
+
+    const video    = document.getElementById("video");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn  = document.getElementById("stopBtn");
+    const statusEl = document.getElementById("status");
+
+    let stream = null;
+    let sending = false;
+
+    async function startTest() {
+        if (sending) return;
+
+        // Kamera ruxsati so‘raymiz
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+        } catch (err) {
+            console.error(err);
+            alert("Kamera ruxsati berilmadi. Test boshlanmaydi.");
+            statusEl.textContent = "Status: permission denied";
+            return;
+        }
+
+        video.srcObject = stream;
+        sending = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        statusEl.textContent = "Status: sending frames...";
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        async function sendLoop() {
+            if (!sending) return;
+
+            const w = video.videoWidth;
+            const h = video.videoHeight;
+
+            // Video hali tayyor bo'lmasa, biroz kutamiz
+            if (!w || !h) {
+                requestAnimationFrame(sendLoop);
+                return;
+            }
+
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+
+            // Canvas → JPEG blob
+            canvas.toBlob(async (blob) => {
+                if (!blob || !sending) return;
+
+                try {
+                    await fetch(PUSH_URL, {
+                        method: "POST",
+                        // Content-Type'ni blob o‘zi qo‘yadi (image/jpeg)
+                        body: blob
+                    });
+                    // console.log("Frame sent");
+                } catch (e) {
+                    console.error("Send error:", e);
+                    statusEl.textContent = "Status: send error (console ni tekshiring)";
+                }
+            }, "image/jpeg", 0.7);
+
+            // FPS ~3 (har 300 ms da bitta frame)
+            setTimeout(sendLoop, 300);
+        }
+
+        sendLoop();
+    }
+
+    function stopTest() {
+        sending = false;
+
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+        }
+
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        statusEl.textContent = "Status: stopped";
+    }
+
+    startBtn.addEventListener("click", startTest);
+    stopBtn.addEventListener("click", stopTest);
+    window.addEventListener("beforeunload", stopTest);
+</script>
+</body>
+</html>

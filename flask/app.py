@@ -103,6 +103,9 @@ def update():
     active = [n for n, t in last_ts.items() if now - t < FRAME_TTL]
     return jsonify(active)
 
+@app.get("/test-camera")
+def camera():
+    return render_template("test-camera.html")
 
 
 if __name__ == "__main__":
