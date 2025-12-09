@@ -3,7 +3,7 @@ import time
 import cv2
 import requests
 
-URL = "http://127.0.0.1:8000/push/room_0"
+URL = "http://127.0.0.1:8000/push/quvonchbek-bobojonov"
 FPS = 10
 
 session = requests.Session()

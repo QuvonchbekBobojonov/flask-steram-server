@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Live Camera Streams</title>
     <style>
@@ -19,8 +19,9 @@
             letter-spacing: 1px;
         }
 
+        /* GRID */
         .grid {
-            display: grid;
+            display: none; /* 🔒 avval yashiriladi */
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
             padding-bottom: 100px;
@@ -55,7 +56,7 @@
             min-height: 220px;
         }
 
-        /* Signature badge */
+        /* SIGNATURE */
         .signature {
             position: fixed;
             bottom: 15px;
@@ -70,65 +71,160 @@
             box-shadow: 0 6px 18px rgba(0,0,0,0.3);
             user-select: none;
         }
+
+        /* ✅ MODAL */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .modal-box {
+            background: #151923;
+            padding: 28px;
+            border-radius: 18px;
+            width: 320px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .modal-box h2 {
+            margin: 0 0 15px;
+            text-align: center;
+            color: #9fd6ff;
+        }
+
+        .modal-box input {
+    width: 100%;
+    height: 46px;
+    box-sizing: border-box;
+
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.15);
+
+    font-size: 15px;
+    color: #0e1117;
+    background: #f9fafb;
+
+    outline: none;
+}
+
+.modal-box input::placeholder {
+    color: #6b7280;
+}
+
+.modal-box input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+}
+
+
+.modal-box button {
+    width: 100%;
+    height: 46px;
+
+    margin-top: 14px;
+    border-radius: 10px;
+    border: none;
+
+    font-size: 15px;
+    cursor: pointer;
+
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+}
+
+        .error {
+            margin-top: 10px;
+            color: #f87171;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
 <body>
 
 <h1>Live Camera Streams</h1>
 
-<div class="grid" id="grid">
-    {% for name in streams %}
-    <div class="cell">
-        <h3>{{ name }}</h3>
-        <img data-src="/{{ name }}" class="lazy" alt="{{ name }}">
+<!-- ✅ MODAL -->
+<div class="modal" id="authModal">
+    <div class="modal-box">
+        <h2>Admin Login</h2>
+        <input type="password" id="password" placeholder="Admin parol">
+        <button onclick="login()">Kirish</button>
+        <div class="error" id="error">Noto‘g‘ri parol</div>
     </div>
-    {% endfor %}
 </div>
+
+<div class="grid" id="grid"></div>
 
 <div class="signature">
     Build by moorfo.uz
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const imgs = document.querySelectorAll("img.lazy");
+    const grid = document.getElementById("grid");
+    const modal = document.getElementById("authModal");
 
-        const observer = new IntersectionObserver(entries => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src; // MUHIM QATOR
-                    observer.unobserve(img);
+    function displayName(name) {
+        return name.replaceAll("_", " ").replaceAll("-", " ").toUpperCase();
+    }
+
+    // ✅ LOGIN
+    async function login() {
+        const password = document.getElementById("password").value;
+
+        const res = await fetch("/auth", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ password })
+        });
+
+        if (res.ok) {
+            modal.style.display = "none";
+            grid.style.display = "grid";
+            startPolling();
+        } else {
+            document.getElementById("error").style.display = "block";
+        }
+    }
+
+    // ✅ CAMERA POLLING
+    function startPolling() {
+        setInterval(async () => {
+            const res = await fetch("/update");
+            if (!res.ok) return;
+
+            const streams = await res.json();
+            const active = new Set(streams);
+
+            streams.forEach(name => {
+                const id = "cam-" + name;
+                if (!document.getElementById(id)) {
+                    const cell = document.createElement("div");
+                    cell.className = "cell";
+                    cell.id = id;
+                    cell.innerHTML = `
+                        <h3>${displayName(name)}</h3>
+                        <img src="/stream/${name}">
+                    `;
+                    grid.appendChild(cell);
                 }
             });
-        });
 
-        imgs.forEach(img => observer.observe(img));
-
-        const grid = document.getElementById("grid");
-
-    setInterval(async () => {
-        const res = await fetch("/update");
-        const streams = await res.json();
-
-        streams.forEach(name => {
-            if (!document.getElementById("cam-" + name)) {
-                const cell = document.createElement("div");
-                cell.className = "cell";
-                cell.id = "cam-" + name;
-
-                cell.innerHTML = `
-                    <h3>${name}</h3>
-                    <img src="/${name}">
-                `;
-
-                grid.appendChild(cell);
-            }
-        });
-    }, 2000);
-    });
+            document.querySelectorAll(".cell").forEach(cell => {
+                const cam = cell.id.replace("cam-", "");
+                if (!active.has(cam)) {
+                    cell.remove();
+                }
+            });
+        }, 2000);
+    }
 </script>
-
 
 </body>
 </html>

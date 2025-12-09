@@ -1,19 +1,33 @@
-from flask import Flask, Response, request, render_template, jsonify
+from flask import Flask, Response, request, render_template, jsonify, session
 import redis
 import time
 
 app = Flask(__name__)
+app.secret_key = "&,eDm?3s&<pPFnH'@)h!C3QmlZ}?l2"
 
 r = redis.Redis(host="redis", port=6379, decode_responses=False)
 last_ts = {}
 FRAME_TTL = 5
 
+ADMIN_PASSWORD = 'moorfo_12345'
 
 def feeder(name):
     pubsub = r.pubsub()
     pubsub.subscribe(f"notify:{name}")
 
     try:
+        # ✅ 1. Birinchi frame (agar mavjud bo‘lsa)
+        first = r.get(f"frame:{name}")
+        if first:
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                b"Content-Length: " + str(len(first)).encode() + b"\r\n\r\n"
+                + first +
+                b"\r\n"
+            )
+
+        # ✅ 2. Keyingi frame’lar
         for msg in pubsub.listen():
             if msg["type"] != "message":
                 continue
@@ -31,11 +45,18 @@ def feeder(name):
             )
 
     except GeneratorExit:
-        # client disconnected
         pass
     finally:
         pubsub.close()
 
+
+@app.post("/auth")
+def auth():
+    data = request.get_json()
+    if data.get("password") == ADMIN_PASSWORD:
+        session["admin"] = True
+        return jsonify({"ok": True})
+    return jsonify({"ok": False}), 401
 
 @app.post("/push/<string:name>")
 def push(name):
@@ -57,13 +78,13 @@ def push(name):
     return jsonify({"status": "ok"}), 200
 
 
-@app.get("/<string:name>")
+@app.get("/stream/<string:name>")
 def view(name):
     return Response(
         feeder(name),
-        mimetype="multipart/x-mixed-replace; boundary=frame",
-        direct_passthrough=True
+        mimetype="multipart/x-mixed-replace; boundary=frame"
     )
+
 
 
 @app.get("/")
@@ -75,9 +96,13 @@ def index():
 
 @app.get("/update")
 def update():
+    if not session.get("admin"):
+        return jsonify([]), 403
+
     now = time.time()
     active = [n for n, t in last_ts.items() if now - t < FRAME_TTL]
     return jsonify(active)
+
 
 
 if __name__ == "__main__":
