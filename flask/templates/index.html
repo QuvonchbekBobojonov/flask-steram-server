@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <title>Live Camera Streams</title>
+
+    <script src="https://unpkg.com/livekit-client/dist/livekit-client.umd.js"></script>
+
     <style>
         body {
             margin: 0;
@@ -16,12 +19,10 @@
             margin-bottom: 30px;
             font-size: 34px;
             font-weight: 600;
-            letter-spacing: 1px;
         }
 
-        /* GRID */
         .grid {
-            display: none; /* 🔒 avval yashiriladi */
+            display: none;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
             padding-bottom: 100px;
@@ -33,13 +34,6 @@
             border-radius: 16px;
             padding: 12px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .cell:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
         }
 
         .cell h3 {
@@ -48,31 +42,13 @@
             color: #9fd6ff;
         }
 
-        img {
+        video {
             width: 100%;
             border-radius: 12px;
             background: black;
-            object-fit: cover;
             min-height: 220px;
         }
 
-        /* SIGNATURE */
-        .signature {
-            position: fixed;
-            bottom: 15px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 10px 18px;
-            border-radius: 12px;
-            font-size: 14px;
-            color: #9fd6ff;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(4px);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
-            user-select: none;
-        }
-
-        /* ✅ MODAL */
         .modal {
             position: fixed;
             inset: 0;
@@ -88,55 +64,28 @@
             padding: 28px;
             border-radius: 18px;
             width: 320px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
-
-        .modal-box h2 {
-            margin: 0 0 15px;
-            text-align: center;
-            color: #9fd6ff;
         }
 
         .modal-box input {
-    width: 100%;
-    height: 46px;
-    box-sizing: border-box;
+            width: 100%;
+            height: 46px;
+            padding: 0 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+        }
 
-    padding: 0 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.15);
-
-    font-size: 15px;
-    color: #0e1117;
-    background: #f9fafb;
-
-    outline: none;
-}
-
-.modal-box input::placeholder {
-    color: #6b7280;
-}
-
-.modal-box input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
-}
-
-
-.modal-box button {
-    width: 100%;
-    height: 46px;
-
-    margin-top: 14px;
-    border-radius: 10px;
-    border: none;
-
-    font-size: 15px;
-    cursor: pointer;
-
-    background: linear-gradient(135deg, #2563eb, #3b82f6);
-    color: white;
-}
+        .modal-box button {
+            width: 100%;
+            height: 46px;
+            margin-top: 14px;
+            border-radius: 10px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
 
         .error {
             margin-top: 10px;
@@ -150,10 +99,9 @@
 
 <h1>Live Camera Streams</h1>
 
-<!-- ✅ MODAL -->
 <div class="modal" id="authModal">
     <div class="modal-box">
-        <h2>Admin Login</h2>
+        <h2 style="text-align:center;color:#9fd6ff">Admin Login</h2>
         <input type="password" id="password" placeholder="Admin parol">
         <button onclick="login()">Kirish</button>
         <div class="error" id="error">Noto‘g‘ri parol</div>
@@ -162,68 +110,74 @@
 
 <div class="grid" id="grid"></div>
 
-<div class="signature">
-    Build by moorfo.uz
-</div>
-
 <script>
-    const grid = document.getElementById("grid");
-    const modal = document.getElementById("authModal");
+const modal = document.getElementById("authModal")
+const grid  = document.getElementById("grid")
 
-    function displayName(name) {
-        return name.replaceAll("_", " ").replaceAll("-", " ").toUpperCase();
+let room
+
+function displayName(name) {
+    return name.replaceAll("_"," ").replaceAll("-", " ").toUpperCase()
+}
+
+async function login() {
+    document.getElementById("error").style.display="none"
+
+    const password = document.getElementById("password").value
+    const res = await fetch("/auth",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({password})
+    })
+
+    if(!res.ok){
+        document.getElementById("error").style.display="block"
+        return
     }
 
-    // ✅ LOGIN
-    async function login() {
-        const password = document.getElementById("password").value;
+    modal.style.display="none"
+    grid.style.display="grid"
+    connectLiveKit()
+}
 
-        const res = await fetch("/auth", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ password })
-        });
+async function connectLiveKit() {
+    const r = await fetch("/token/admin")
+    const data = await r.json()
 
-        if (res.ok) {
-            modal.style.display = "none";
-            grid.style.display = "grid";
-            startPolling();
-        } else {
-            document.getElementById("error").style.display = "block";
-        }
-    }
+    room = new LiveKit.Room()
+    await room.connect(data.url, data.token)
 
-    // ✅ CAMERA POLLING
-    function startPolling() {
-        setInterval(async () => {
-            const res = await fetch("/update");
-            if (!res.ok) return;
+    room.on("trackSubscribed", (track, pub, participant) => {
+        if(track.kind !== "video") return
 
-            const streams = await res.json();
-            const active = new Set(streams);
+        const id = "cam-" + participant.identity
+        if(document.getElementById(id)) return
 
-            streams.forEach(name => {
-                const id = "cam-" + name;
-                if (!document.getElementById(id)) {
-                    const cell = document.createElement("div");
-                    cell.className = "cell";
-                    cell.id = id;
-                    cell.innerHTML = `
-                        <h3>${displayName(name)}</h3>
-                        <img src="/stream/${name}">
-                    `;
-                    grid.appendChild(cell);
-                }
-            });
+        const cell = document.createElement("div")
+        cell.className="cell"
+        cell.id=id
 
-            document.querySelectorAll(".cell").forEach(cell => {
-                const cam = cell.id.replace("cam-", "");
-                if (!active.has(cam)) {
-                    cell.remove();
-                }
-            });
-        }, 2000);
-    }
+        const h = document.createElement("h3")
+        h.textContent = displayName(participant.identity)
+
+        const video = track.attach()
+        video.autoplay = true
+        video.playsInline = true
+
+        cell.appendChild(h)
+        cell.appendChild(video)
+        grid.appendChild(cell)
+    })
+
+    room.on("participantDisconnected", participant => {
+        const el = document.getElementById("cam-"+participant.identity)
+        if(el) el.remove()
+    })
+}
+
+document.getElementById("password").addEventListener("keydown", e=>{
+    if(e.key==="Enter") login()
+})
 </script>
 
 </body>

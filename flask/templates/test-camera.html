@@ -1,79 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Camera → MediaMTX WebRTC Test</title>
-<style>
-body{margin:0;padding:20px;font-family:Segoe UI,Arial,sans-serif;background:#0d1117;color:#e6e6e6}
-h1{text-align:center;margin-bottom:20px}
-.wrap{max-width:720px;margin:0 auto;text-align:center}
-video{width:100%;max-width:640px;border-radius:12px;background:black}
-.controls{margin-top:15px}
-button{padding:8px 18px;margin:0 5px;border-radius:8px;border:none;cursor:pointer;font-size:14px}
-#startBtn{background:#238636;color:#fff}
-#stopBtn{background:#8b949e;color:#fff}
-#status{margin-top:10px;font-size:14px;opacity:.9}
-</style>
+<script src="https://unpkg.com/livekit-client/dist/livekit-client.umd.js"></script>
 </head>
 <body>
-
-<div class="wrap">
-<h1>Camera → MediaMTX WebRTC</h1>
-<video id="video" autoplay playsinline muted></video>
-<div class="controls">
-<button id="startBtn">Start</button>
-<button id="stopBtn" disabled>Stop</button>
-</div>
-<div id="status">Status: Ready</div>
-</div>
-
+<video id="v" autoplay muted playsinline style="width:400px"></video>
 <script>
-const PATH = "quvonchbek-bobojonov"
-const SIGNALING_URL = "wss://ic3-camera-cantrol.moorfo.uz:8889/webrtc"
-
-const video = document.getElementById("video")
-const startBtn = document.getElementById("startBtn")
-const stopBtn = document.getElementById("stopBtn")
-const statusEl = document.getElementById("status")
-
-let pc
-let stream
-
-async function start() {
-  stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false})
-  video.srcObject = stream
-
-  pc = new RTCPeerConnection()
-  stream.getTracks().forEach(t=>pc.addTrack(t,stream))
-
-  const offer = await pc.createOffer()
-  await pc.setLocalDescription(offer)
-
-  const res = await fetch(`${SIGNALING_URL}?path=${PATH}`,{
-    method:"POST",
-    headers:{"Content-Type":"application/sdp"},
-    body:offer.sdp
-  })
-
-  const answer = await res.text()
-  await pc.setRemoteDescription({type:"answer",sdp:answer})
-
-  startBtn.disabled=true
-  stopBtn.disabled=false
-  statusEl.textContent="Status: live"
-}
-
-function stop(){
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
-  if(pc){pc.close();pc=null}
-  startBtn.disabled=false
-  stopBtn.disabled=true
-  statusEl.textContent="Status: stopped"
-}
-
-startBtn.onclick=start
-stopBtn.onclick=stop
-window.onbeforeunload=stop
+const USER="quvonchbek-bobojonov"
+fetch(`/token/${USER}`).then(r=>r.json()).then(async d=>{
+  const r=new LiveKit.Room()
+  await r.connect(d.url,d.token)
+  const s=await navigator.mediaDevices.getUserMedia({video:true})
+  document.getElementById("v").srcObject=s
+  await r.localParticipant.publishTrack(s.getVideoTracks()[0])
+})
 </script>
 </body>
 </html>

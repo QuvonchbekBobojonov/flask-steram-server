@@ -1,0 +1,8 @@
+keys:
+  LK_API_KEY: 88dkD9EwafTA20mYmFOn8q7sl9FSCMBJc0wGBjYHa1N
+
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  udp_port: 7882

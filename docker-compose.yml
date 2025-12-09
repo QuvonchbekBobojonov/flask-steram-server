@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   flask:
     build: ./flask
@@ -6,25 +8,15 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - redis
-      - mediamtx
+      - livekit
 
-  redis:
-    image: redis:alpine
-    container_name: redis_cache
-    restart: always
+  livekit:
+    image: livekit/livekit-server:v1.7
+    container_name: livekit
+    command: --config /config.yaml
     ports:
-      - "6379:6379"
-
-  mediamtx:
-    image: bluenviron/mediamtx:latest
-    container_name: mediamtx
-    restart: always
-    ports:
-      - "8554:8554"   # RTSP
-      - "8889:8889"   # Web UI + WebRTC
-      - "8888:8888"   # HLS
-      - "8189:8189"   # WebRTC (UDP/TCP)
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
     volumes:
-      - ./mediamtx.yml:/mediamtx.yml
-    command: /mediamtx.yml
+      - ./livekit.yaml:/config.yaml
