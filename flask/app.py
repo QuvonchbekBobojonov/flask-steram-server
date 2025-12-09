@@ -3,11 +3,11 @@ from livekit import api
 import time
 
 app = Flask(__name__)
-app.secret_key = "tw5e325efeg2673rf273r6f7236r"
+app.secret_key = "fdjgbfdkgjbdfjgbjdgdfgdfsg"
 
-ADMIN_PASSWORD = "moorfo_12345"
+ADMIN_PASSWORD = "moorfo"
 
-LIVEKIT_URL = "wss://ic3-camera-cantrol.moorfo.uz/livekit"  # NGINX orqali
+LIVEKIT_URL = "wss://ic3-o2itc2nx.livekit.cloud"
 LIVEKIT_API_KEY = "API4KJnqvB4ggR6"
 LIVEKIT_API_SECRET = "88dkD9EwafTA20mYmFOn8q7sl9FSCMBJc0wGBjYHa1N"
 ROOM = "exam"
@@ -16,8 +16,7 @@ last_seen = {}
 
 @app.post("/auth")
 def auth():
-    data = request.get_json(force=True, silent=True) or {}
-    if data.get("password") == ADMIN_PASSWORD:
+    if request.get_json(force=True).get("password") == ADMIN_PASSWORD:
         session["admin"] = True
         return jsonify(ok=True)
     return jsonify(ok=False), 401
@@ -25,11 +24,10 @@ def auth():
 @app.get("/token/<username>")
 def token(username):
     last_seen[username] = time.time()
-
     at = api.AccessToken(
         LIVEKIT_API_KEY,
         LIVEKIT_API_SECRET
-    ).with_identity(username).with_grants(
+    ).with_identity(username).with_name(username).with_grants(
         api.VideoGrants(
             room_join=True,
             room=ROOM,
@@ -37,12 +35,7 @@ def token(username):
             can_subscribe=True
         )
     )
-
-    return jsonify(
-        token=at.to_jwt(),
-        url=LIVEKIT_URL,
-        room=ROOM
-    )
+    return jsonify(token=at.to_jwt(), url=LIVEKIT_URL, room=ROOM)
 
 @app.get("/update")
 def update():
@@ -60,4 +53,4 @@ def test_camera():
     return render_template("test-camera.html")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000, threaded=True)

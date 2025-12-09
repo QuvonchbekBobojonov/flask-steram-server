@@ -1,19 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://unpkg.com/livekit-client/dist/livekit-client.umd.js"></script>
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
-<video id="v" autoplay muted playsinline style="width:400px"></video>
+<button onclick="start()">Start</button>
+<video id="v" autoplay muted playsinline style="width:400px;background:black"></video>
+<pre id="log"></pre>
 <script>
 const USER="quvonchbek-bobojonov"
-fetch(`/token/${USER}`).then(r=>r.json()).then(async d=>{
-  const r=new LiveKit.Room()
-  await r.connect(d.url,d.token)
-  const s=await navigator.mediaDevices.getUserMedia({video:true})
-  document.getElementById("v").srcObject=s
-  await r.localParticipant.publishTrack(s.getVideoTracks()[0])
-})
+const log=t=>document.getElementById("log").textContent+=t+"\n"
+async function start(){
+  try{
+    const r=await fetch(`/token/${USER}`)
+    const d=await r.json()
+    const room=new LivekitClient.Room()
+    await room.connect(d.url,d.token)
+    const tracks=await LivekitClient.createLocalTracks({video:true})
+    await room.localParticipant.publishTrack(tracks[0])
+    document.getElementById("v").srcObject=new MediaStream([tracks[0].mediaStreamTrack])
+    log("LIVE")
+  }catch(e){log(e.message)}
+}
 </script>
 </body>
 </html>
