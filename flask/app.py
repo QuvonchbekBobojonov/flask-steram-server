@@ -1,9 +1,15 @@
+from flask_socketio import SocketIO
 from flask import Flask, Response, request, render_template, jsonify, session
 import redis
 import time
 
 app = Flask(__name__)
 app.secret_key = "&,eDm?3s&<pPFnH'@)h!C3QmlZ}?l2"
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="eventlet"
+)
 
 r = redis.Redis(host="redis", port=6379, decode_responses=False)
 last_ts = {}
@@ -107,6 +113,27 @@ def update():
 def camera():
     return render_template("test-camera.html")
 
+@socketio.on("frame")
+def receive_frame(data):
+    name = data.get("name")
+    image = data.get("image")
+
+    if not name or not image:
+        return
+
+    now_ts = time.time()
+
+    pipe = r.pipeline(transaction=False)
+    pipe.set(f"frame:{name}", image)
+    pipe.set(f"timestamp:{name}", now_ts)
+    pipe.expire(f"frame:{name}", FRAME_TTL)
+    pipe.expire(f"timestamp:{name}", FRAME_TTL)
+    pipe.publish(f"notify:{name}", b"1")
+    pipe.execute()
+
+    last_ts[name] = now_ts
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, threaded=True)
+    socketio.run(app, host="0.0.0.0", port=8000, )
+

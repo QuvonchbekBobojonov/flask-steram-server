@@ -11,24 +11,15 @@
             background: #0d1117;
             color: #e6e6e6;
         }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .wrap {
-            max-width: 720px;
-            margin: 0 auto;
-            text-align: center;
-        }
+        h1 { text-align: center; margin-bottom: 20px; }
+        .wrap { max-width: 720px; margin: 0 auto; text-align: center; }
         video {
             width: 100%;
             max-width: 640px;
             border-radius: 12px;
             background: black;
         }
-        .controls {
-            margin-top: 15px;
-        }
+        .controls { margin-top: 15px; }
         button {
             padding: 8px 18px;
             margin: 0 5px;
@@ -39,16 +30,13 @@
         }
         #startBtn { background: #238636; color: white; }
         #stopBtn  { background: #8b949e; color: white; }
-        #status {
-            margin-top: 10px;
-            font-size: 14px;
-            opacity: 0.9;
-        }
+        #status { margin-top: 10px; font-size: 14px; opacity: 0.9; }
     </style>
 </head>
 <body>
+
 <div class="wrap">
-    <h1>Camera → Server Push Test</h1>
+    <h1>Camera → Socket.IO Push Test</h1>
 
     <video id="video" autoplay playsinline></video>
 
@@ -60,98 +48,90 @@
     <div id="status">Status: Ready</div>
 </div>
 
+<!-- ✅ Socket.IO client -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
 <script>
-    // !!! Shu yerda sening push URL'ing
-    const PUSH_URL = "https://ic3-camera-cantrol.moorfo.uz/push/quvonchbek-bobojonov";
+const CAMERA_NAME = "quvonchbek-bobojonov";
+const video = document.getElementById("video");
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const statusEl = document.getElementById("status");
 
-    const video    = document.getElementById("video");
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn  = document.getElementById("stopBtn");
-    const statusEl = document.getElementById("status");
+const socket = io(); // ← shu serverga ulanadi
 
-    let stream = null;
-    let sending = false;
+let stream = null;
+let sending = false;
 
-    async function startTest() {
-        if (sending) return;
+async function startTest() {
+    if (sending) return;
 
-        // Kamera ruxsati so‘raymiz
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: false
-            });
-        } catch (err) {
-            console.error(err);
-            alert("Kamera ruxsati berilmadi. Test boshlanmaydi.");
-            statusEl.textContent = "Status: permission denied";
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+        });
+    } catch (e) {
+        alert("Kamera ruxsati berilmadi");
+        return;
+    }
+
+    video.srcObject = stream;
+    sending = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    statusEl.textContent = "Status: streaming (Socket.IO)";
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    function sendLoop() {
+        if (!sending) return;
+
+        if (video.readyState < 2) {
+            requestAnimationFrame(sendLoop);
             return;
         }
 
-        video.srcObject = stream;
-        sending = true;
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        statusEl.textContent = "Status: sending frames...";
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
 
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+        canvas.toBlob(blob => {
+            if (!blob || !sending) return;
 
-        async function sendLoop() {
-            if (!sending) return;
+            blob.arrayBuffer().then(buf => {
+                socket.emit("frame", {
+                    name: CAMERA_NAME,
+                    image: buf
+                });
+            });
+        }, "image/jpeg", 0.7);
 
-            const w = video.videoWidth;
-            const h = video.videoHeight;
-
-            // Video hali tayyor bo'lmasa, biroz kutamiz
-            if (!w || !h) {
-                requestAnimationFrame(sendLoop);
-                return;
-            }
-
-            canvas.width = w;
-            canvas.height = h;
-            ctx.drawImage(video, 0, 0, w, h);
-
-            // Canvas → JPEG blob
-            canvas.toBlob(async (blob) => {
-                if (!blob || !sending) return;
-
-                try {
-                    await fetch(PUSH_URL, {
-                        method: "POST",
-                        // Content-Type'ni blob o‘zi qo‘yadi (image/jpeg)
-                        body: blob
-                    });
-                    // console.log("Frame sent");
-                } catch (e) {
-                    console.error("Send error:", e);
-                    statusEl.textContent = "Status: send error (console ni tekshiring)";
-                }
-            }, "image/jpeg", 0.7);
-
-            setTimeout(sendLoop, 100);
-        }
-
-        sendLoop();
+        // ✅ BARQAROR FPS
+        setTimeout(sendLoop, 300); // ~3 FPS
     }
 
-    function stopTest() {
-        sending = false;
+    sendLoop();
+}
 
-        if (stream) {
-            stream.getTracks().forEach(t => t.stop());
-            stream = null;
-        }
+function stopTest() {
+    sending = false;
 
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-        statusEl.textContent = "Status: stopped";
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
     }
 
-    startBtn.addEventListener("click", startTest);
-    stopBtn.addEventListener("click", stopTest);
-    window.addEventListener("beforeunload", stopTest);
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    statusEl.textContent = "Status: stopped";
+}
+
+startBtn.onclick = startTest;
+stopBtn.onclick = stopTest;
+window.addEventListener("beforeunload", stopTest);
 </script>
+
 </body>
 </html>
