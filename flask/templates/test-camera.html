@@ -1,137 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Camera Push Test</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #0d1117;
-            color: #e6e6e6;
-        }
-        h1 { text-align: center; margin-bottom: 20px; }
-        .wrap { max-width: 720px; margin: 0 auto; text-align: center; }
-        video {
-            width: 100%;
-            max-width: 640px;
-            border-radius: 12px;
-            background: black;
-        }
-        .controls { margin-top: 15px; }
-        button {
-            padding: 8px 18px;
-            margin: 0 5px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        #startBtn { background: #238636; color: white; }
-        #stopBtn  { background: #8b949e; color: white; }
-        #status { margin-top: 10px; font-size: 14px; opacity: 0.9; }
-    </style>
+<meta charset="UTF-8">
+<title>Camera → MediaMTX WebRTC Test</title>
+<style>
+body{margin:0;padding:20px;font-family:Segoe UI,Arial,sans-serif;background:#0d1117;color:#e6e6e6}
+h1{text-align:center;margin-bottom:20px}
+.wrap{max-width:720px;margin:0 auto;text-align:center}
+video{width:100%;max-width:640px;border-radius:12px;background:black}
+.controls{margin-top:15px}
+button{padding:8px 18px;margin:0 5px;border-radius:8px;border:none;cursor:pointer;font-size:14px}
+#startBtn{background:#238636;color:#fff}
+#stopBtn{background:#8b949e;color:#fff}
+#status{margin-top:10px;font-size:14px;opacity:.9}
+</style>
 </head>
 <body>
 
 <div class="wrap">
-    <h1>Camera → Socket.IO Push Test</h1>
-
-    <video id="video" autoplay playsinline></video>
-
-    <div class="controls">
-        <button id="startBtn">Start test</button>
-        <button id="stopBtn" disabled>Stop</button>
-    </div>
-
-    <div id="status">Status: Ready</div>
+<h1>Camera → MediaMTX WebRTC</h1>
+<video id="video" autoplay playsinline muted></video>
+<div class="controls">
+<button id="startBtn">Start</button>
+<button id="stopBtn" disabled>Stop</button>
+</div>
+<div id="status">Status: Ready</div>
 </div>
 
-<!-- ✅ Socket.IO client -->
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-
 <script>
-const CAMERA_NAME = "quvonchbek-bobojonov";
-const video = document.getElementById("video");
-const startBtn = document.getElementById("startBtn");
-const stopBtn = document.getElementById("stopBtn");
-const statusEl = document.getElementById("status");
+const PATH = "quvonchbek-bobojonov"
+const SIGNALING_URL = "wss://ic3-camera-cantrol.moorfo.uz:8889/webrtc"
 
-const socket = io(); // ← shu serverga ulanadi
+const video = document.getElementById("video")
+const startBtn = document.getElementById("startBtn")
+const stopBtn = document.getElementById("stopBtn")
+const statusEl = document.getElementById("status")
 
-let stream = null;
-let sending = false;
+let pc
+let stream
 
-async function startTest() {
-    if (sending) return;
+async function start() {
+  stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false})
+  video.srcObject = stream
 
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false
-        });
-    } catch (e) {
-        alert("Kamera ruxsati berilmadi");
-        return;
-    }
+  pc = new RTCPeerConnection()
+  stream.getTracks().forEach(t=>pc.addTrack(t,stream))
 
-    video.srcObject = stream;
-    sending = true;
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
-    statusEl.textContent = "Status: streaming (Socket.IO)";
+  const offer = await pc.createOffer()
+  await pc.setLocalDescription(offer)
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+  const res = await fetch(`${SIGNALING_URL}?path=${PATH}`,{
+    method:"POST",
+    headers:{"Content-Type":"application/sdp"},
+    body:offer.sdp
+  })
 
-    function sendLoop() {
-        if (!sending) return;
+  const answer = await res.text()
+  await pc.setRemoteDescription({type:"answer",sdp:answer})
 
-        if (video.readyState < 2) {
-            requestAnimationFrame(sendLoop);
-            return;
-        }
-
-        canvas.width  = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-
-        canvas.toBlob(blob => {
-            if (!blob || !sending) return;
-
-            blob.arrayBuffer().then(buf => {
-                socket.emit("frame", {
-                    name: CAMERA_NAME,
-                    image: buf
-                });
-            });
-        }, "image/jpeg", 0.7);
-
-        // ✅ BARQAROR FPS
-        setTimeout(sendLoop, 300); // ~3 FPS
-    }
-
-    sendLoop();
+  startBtn.disabled=true
+  stopBtn.disabled=false
+  statusEl.textContent="Status: live"
 }
 
-function stopTest() {
-    sending = false;
-
-    if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-    }
-
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-    statusEl.textContent = "Status: stopped";
+function stop(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  if(pc){pc.close();pc=null}
+  startBtn.disabled=false
+  stopBtn.disabled=true
+  statusEl.textContent="Status: stopped"
 }
 
-startBtn.onclick = startTest;
-stopBtn.onclick = stopTest;
-window.addEventListener("beforeunload", stopTest);
+startBtn.onclick=start
+stopBtn.onclick=stop
+window.onbeforeunload=stop
 </script>
-
 </body>
 </html>

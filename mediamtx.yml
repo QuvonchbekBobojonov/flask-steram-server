@@ -1,3 +1,7 @@
+rtsp: yes
+webrtc: yes
+hls: yes
+
 paths:
   all:
     source: publisher
