@@ -14,16 +14,6 @@ ROOM = "exam"
 
 last_seen = {}
 
-def unique_username(name):
-    if name not in last_seen:
-        return name
-
-    i = 1
-    while f"{name}_{i}" in last_seen:
-        i += 1
-    return f"{name}_{i}"
-
-
 @app.post("/auth")
 def auth():
     if request.get_json(force=True).get("password") == ADMIN_PASSWORD:
@@ -31,28 +21,21 @@ def auth():
         return jsonify(ok=True)
     return jsonify(ok=False), 401
 
-@app.get("/token/<string:username>")
+@app.get("/token/<username>")
 def token(username):
-    uname = unique_username(username)
-    last_seen[uname] = time.time()
-
+    last_seen[username] = time.time()
     at = api.AccessToken(
         LIVEKIT_API_KEY,
         LIVEKIT_API_SECRET
-    ).with_identity(uname).with_grants(
+    ).with_identity(username).with_name(username).with_grants(
         api.VideoGrants(
             room_join=True,
-            room=ROOM_NAME
+            room=ROOM,
+            can_publish=True,
+            can_subscribe=True
         )
     )
-
-    return jsonify(
-        token=at.to_jwt(),
-        url=LIVEKIT_URL,
-        room=ROOM_NAME,
-        identity=uname
-    )
-
+    return jsonify(token=at.to_jwt(), url=LIVEKIT_URL, room=ROOM)
 
 @app.get("/update")
 def update():
