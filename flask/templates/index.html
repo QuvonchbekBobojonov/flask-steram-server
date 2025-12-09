@@ -45,18 +45,17 @@
             margin: 5px 0 12px 0;
             font-weight: 500;
             color: #9fd6ff;
-            word-break: break-all;
         }
 
-        /* ✅ WEBRTC iframe */
-        .player {
+        img {
             width: 100%;
-            height: 220px;
             border-radius: 12px;
-            border: none;
             background: black;
+            object-fit: cover;
+            min-height: 220px;
         }
 
+        /* Signature badge */
         .signature {
             position: fixed;
             bottom: 15px;
@@ -77,11 +76,11 @@
 
 <h1>Live Camera Streams</h1>
 
-<div class="grid">
+<div class="grid" id="grid">
     {% for name in streams %}
     <div class="cell">
         <h3>{{ name }}</h3>
-        <img src="/view/{{ name }}" style="width:320px;">
+        <img data-src="/{{ name }}" class="lazy" alt="{{ name }}">
     </div>
     {% endfor %}
 </div>
@@ -91,20 +90,45 @@
 </div>
 
 <script>
-const lazyFrames = document.querySelectorAll('.lazy');
+    document.addEventListener("DOMContentLoaded", () => {
+        const imgs = document.querySelectorAll("img.lazy");
 
-const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const frame = entry.target;
-            frame.src = frame.dataset.src;
-            observer.unobserve(frame);
-        }
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src; // MUHIM QATOR
+                    observer.unobserve(img);
+                }
+            });
+        });
+
+        imgs.forEach(img => observer.observe(img));
+
+        const grid = document.getElementById("grid");
+
+    setInterval(async () => {
+        const res = await fetch("/update");
+        const streams = await res.json();
+
+        streams.forEach(name => {
+            if (!document.getElementById("cam-" + name)) {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                cell.id = "cam-" + name;
+
+                cell.innerHTML = `
+                    <h3>${name}</h3>
+                    <img src="/${name}">
+                `;
+
+                grid.appendChild(cell);
+            }
+        });
+    }, 2000);
     });
-}, { rootMargin: "200px" });
-
-lazyFrames.forEach(f => observer.observe(f));
 </script>
+
 
 </body>
 </html>
