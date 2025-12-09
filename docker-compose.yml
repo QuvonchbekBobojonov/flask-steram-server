@@ -7,16 +7,3 @@ services:
     restart: always
     ports:
       - "8000:8000"
-    depends_on:
-      - livekit
-
-  livekit:
-    image: livekit/livekit-server:v1.7
-    container_name: livekit
-    command: --config /config.yaml
-    ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "7882:7882/udp"
-    volumes:
-      - ./livekit.yaml:/config.yaml
