@@ -1,6 +1,8 @@
-from flask import Flask, render_template, jsonify, request, session
-from livekit import api
 import time
+
+from livekit import api
+
+from flask import Flask, render_template, jsonify, request, session
 
 app = Flask(__name__)
 app.secret_key = "fdjgbfdkgjbdfjgbjdgdfgdfsg"
@@ -14,12 +16,20 @@ ROOM = "exam"
 
 last_seen = {}
 
+
+@app.after_request
+def cors(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
 @app.post("/auth")
 def auth():
     if request.get_json(force=True).get("password") == ADMIN_PASSWORD:
         session["admin"] = True
         return jsonify(ok=True)
     return jsonify(ok=False), 401
+
 
 @app.get("/token/<username>")
 def token(username):
@@ -37,6 +47,7 @@ def token(username):
     )
     return jsonify(token=at.to_jwt(), url=LIVEKIT_URL, room=ROOM)
 
+
 @app.get("/update")
 def update():
     if not session.get("admin"):
@@ -44,13 +55,16 @@ def update():
     now = time.time()
     return jsonify([u for u, t in last_seen.items() if now - t < 10])
 
+
 @app.get("/")
 def index():
     return render_template("index.html")
 
+
 @app.get("/test-camera")
 def test_camera():
     return render_template("test-camera.html")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, threaded=True)
